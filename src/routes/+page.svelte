@@ -455,6 +455,11 @@
 		@media (min-width: 1000px) {
 			grid-template-columns: 2fr 4fr 3fr;
 			gap: 2rem;
+			.intro,
+			.submissions {
+				position: sticky;
+				inset-block-start: 1rem;
+			}
 		}
 	}
 	.intro {
@@ -464,8 +469,7 @@
 			line-height: 0.9;
 			text-wrap: balance;
 		}
-		position: sticky;
-		inset-block-start: 1rem;
+
 		background-color: var(--text-background);
 		padding: 1rem 2rem;
 		border-radius: 0.125rem;
@@ -512,10 +516,7 @@
 			}
 		}
 	}
-	.submissions {
-		position: sticky;
-		inset-block-start: 1rem;
-	}
+
 	button {
 		background-color: var(--dark-green);
 		color: var(--text-background);
