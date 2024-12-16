@@ -32,6 +32,9 @@ jobs:
         run: npm install
 
       - name: Build app
+        env:
+          SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY || '' }}
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || '' }}
         run: npm run build
 
       - name: Upload artifact 🏆
