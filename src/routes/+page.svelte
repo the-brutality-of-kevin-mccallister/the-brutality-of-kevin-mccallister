@@ -143,23 +143,32 @@
 	 */
 	let draggedIndex = null;
 
-	// Drag-and-drop handling
 	/**
-	 * @param {DragEvent & { currentTarget: EventTarget & HTMLLIElement; }} event
+	 * Handle the start of a drag or touch event
+	 * @param {Event} event
 	 * @param {number} index
 	 */
-	// @ts-ignore
 	function handleDragStart(event, index) {
 		draggedIndex = index;
+
+		// For touch events, prevent default behavior
+		if (event.type === 'touchstart') {
+			event.preventDefault();
+		}
 	}
 
 	/**
-	 * @param {DragEvent & { currentTarget: EventTarget & HTMLLIElement; }} event
+	 * Handle the drop or touchend event
+	 * @param {Event} event
 	 * @param {number} index
 	 */
-	// @ts-ignore
 	function handleDrop(event, index) {
 		if (draggedIndex !== null) {
+			// Prevent default touch behavior
+			if (event.type === 'touchend') {
+				event.preventDefault();
+			}
+
 			// Create a copy of the array to ensure reactivity
 			const updatedInjuries = [...injuries];
 
@@ -177,14 +186,19 @@
 	}
 
 	/**
-	 * @param {DragEvent & { currentTarget: EventTarget & HTMLLIElement; }} event
+	 * Handle dragover or touchmove
+	 * @param {Event} event
 	 * @param {number} index
 	 */
 	function handleDragOver(event, index) {
 		event.preventDefault();
+
+		// Update dragging state
 		injuries[index].dragging = true;
 	}
+
 	/**
+	 * Handle dragleave or touchcancel
 	 * @param {number} index
 	 */
 	function handleDragLeave(index) {
@@ -373,6 +387,9 @@
 					on:drop={(event) => handleDrop(event, index)}
 					on:dragover={(event) => handleDragOver(event, index)}
 					on:dragleave={() => handleDragLeave(index)}
+					on:touchstart={(event) => handleDragStart(event, index)}
+					on:touchmove={(event) => handleDragOver(event, index)}
+					on:touchend={(event) => handleDrop(event, index)}
 					class:dragging={injury.dragging}
 				>
 					<img src={injury.image} alt={injury.name} />
@@ -511,8 +528,10 @@
 				border-color: var(--green);
 			}
 			&.dragging {
-				opacity: 0.5;
+				opacity: 0.7;
 				background-color: var(--red);
+				transform: scale(1.05); /* Slight zoom effect for feedback */
+				transition: transform 0.2s ease;
 			}
 		}
 	}
