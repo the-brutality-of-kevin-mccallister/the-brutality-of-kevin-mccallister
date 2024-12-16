@@ -289,6 +289,7 @@
 		--green: hsla(142.6, 52.3%, 42.7%, var(--alpha));
 		--dark-green: hsla(159, 80.4%, 30%, var(--alpha));
 		--text-background: hsla(60, 55.6%, 91.2%, var(--alpha));
+		user-select: none;
 		font-family: system-ui;
 		line-height: 1.4;
 		background: repeating-linear-gradient(
