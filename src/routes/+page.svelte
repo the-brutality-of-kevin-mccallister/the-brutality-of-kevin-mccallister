@@ -142,24 +142,30 @@
 	 * @type {number | null}
 	 */
 	let draggedIndex = null;
+	/**
+	 * @type {number | null}
+	 */
+	let touchStartY = null;
 
 	/**
 	 * Handle the start of a drag or touch event
-	 * @param {Event} event
+	 * @param {TouchEvent | DragEvent} event
 	 * @param {number} index
 	 */
 	function handleDragStart(event, index) {
 		draggedIndex = index;
 
-		// For touch events, prevent default behavior
+		// Track touch position for touch-based drag-and-drop
 		if (event.type === 'touchstart') {
-			event.preventDefault();
+			if (event instanceof TouchEvent) {
+				touchStartY = event.touches[0].clientY;
+			}
 		}
 	}
 
 	/**
 	 * Handle the drop or touchend event
-	 * @param {Event} event
+	 * @param {TouchEvent | DragEvent} event
 	 * @param {number} index
 	 */
 	function handleDrop(event, index) {
@@ -169,32 +175,48 @@
 				event.preventDefault();
 			}
 
-			// Create a copy of the array to ensure reactivity
+			// Update the list order
 			const updatedInjuries = [...injuries];
-
-			// Perform the splice operations on the copy
 			const [movedItem] = updatedInjuries.splice(draggedIndex, 1);
 			updatedInjuries.splice(index, 0, movedItem);
 
-			// Reassign the array to trigger reactivity
-			injuries[index].dragging = false;
-			injuries = updatedInjuries;
-
-			// Reset draggedIndex
+			// Update the list and reset drag state
+			injuries = updatedInjuries.map((injury) => ({ ...injury, dragging: false }));
 			draggedIndex = null;
+			touchStartY = null;
 		}
 	}
 
 	/**
 	 * Handle dragover or touchmove
-	 * @param {Event} event
+	 * @param {TouchEvent | DragEvent} event
 	 * @param {number} index
 	 */
 	function handleDragOver(event, index) {
 		event.preventDefault();
 
-		// Update dragging state
-		injuries[index].dragging = true;
+		// Handle touch-based dragging
+		if (event.type === 'touchmove') {
+			const currentY = event instanceof TouchEvent ? event.touches[0].clientY : 0;
+
+			// Determine if we're moving up or down
+			if (touchStartY && Math.abs(currentY - touchStartY) > 30) {
+				if (currentY > touchStartY && index < injuries.length - 1) {
+					// Moving down
+					handleDrop(event, index + 1);
+				} else if (currentY < touchStartY && index > 0) {
+					// Moving up
+					handleDrop(event, index - 1);
+				}
+				touchStartY = currentY; // Update the start position
+			}
+		}
+
+		// Update dragging state for visual feedback
+		injuries = injuries.map((injury, i) => ({
+			...injury,
+			dragging: i === index
+		}));
 	}
 
 	/**
