@@ -2,27 +2,136 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { onMount } from 'svelte';
 
-	// @ts-ignore
-	// @ts-ignore
+	/**
+	 * @type {{ id: number; name: string; dragging: boolean; image: string, victim:string }[]}
+	 */
 	let injuries = [
-		{ id: 1677, name: 'Marv - Shot in the face', dragging: false },
-		{ id: 1496, name: "Harry - Shot in the Gentleman's agreement", dragging: false },
-		{ id: 6001, name: 'Marv - Falling down the steps', dragging: false },
-		{ id: 9321, name: 'Marv - Falling at basement door', dragging: false },
-		{ id: 3006, name: 'Marv - Crowbar to the noggin', dragging: false },
-		{ id: 2239, name: 'Marv - Iron down the laundry chute', dragging: false },
-		{ id: 7758, name: 'Marv - Nail through the foot', dragging: false },
-		{ id: 2499, name: 'Marv - Standing on glass baubles', dragging: false },
-		{ id: 4321, name: 'Harry - Falling up the icy steps', dragging: false },
-		{ id: 4441, name: 'Harry - Burning hand on door handle', dragging: false },
-		{ id: 6395, name: 'Harry - Falling down the steps', dragging: false },
-		{ id: 7749, name: 'Harry - Blow torched', dragging: false },
-		{ id: 5498, name: 'Harry - Lubed and feathered', dragging: false },
-		{ id: 9914, name: 'Marv & Harry - Micro machines', dragging: false },
-		{ id: 2820, name: 'Marv & Harry - Paint can to the face', dragging: false },
-		{ id: 2258, name: 'Marv - Tarantula', dragging: false },
-		{ id: 5253, name: 'Harry - Crowbar to the ribs', dragging: false },
-		{ id: 9496, name: 'Marv & Harry - Falling from the tree house', dragging: false }
+		{
+			id: 1677,
+			name: 'Shot in the face',
+			dragging: false,
+			image: '/images/marv.jpg',
+			victim: 'marv'
+		},
+		{
+			id: 1496,
+			name: "Shot in the Gentleman's agreement",
+			dragging: false,
+			image: '/images/harry.jpg',
+			victim: 'harry'
+		},
+		{
+			id: 6001,
+			name: 'Falling down the steps',
+			dragging: false,
+			image: '/images/marv.jpg',
+			victim: 'marv'
+		},
+		{
+			id: 9321,
+			name: 'Falling at basement door',
+			dragging: false,
+			image: '/images/marv.jpg',
+			victim: 'marv'
+		},
+		{
+			id: 3006,
+			name: 'Crowbar to the noggin',
+			dragging: false,
+			image: '/images/marv.jpg',
+			victim: 'marv'
+		},
+		{
+			id: 2239,
+			name: 'Iron down the laundry chute',
+			dragging: false,
+			image: '/images/marv.jpg',
+			victim: 'marv'
+		},
+		{
+			id: 7758,
+			name: 'Nail through the foot',
+			dragging: false,
+			image: '/images/marv.jpg',
+			victim: 'marv'
+		},
+		{
+			id: 2499,
+			name: 'Standing on glass baubles',
+			dragging: false,
+			image: '/images/marv.jpg',
+			victim: 'marv'
+		},
+		{
+			id: 4321,
+			name: 'Falling up the icy steps',
+			dragging: false,
+			image: '/images/harry.jpg',
+			victim: 'harry'
+		},
+		{
+			id: 4441,
+			name: 'Burning hand on door handle',
+			dragging: false,
+			image: '/images/harry.jpg',
+			victim: 'harry'
+		},
+		{
+			id: 6395,
+			name: 'Falling down the steps',
+			dragging: false,
+			image: '/images/harry.jpg',
+			victim: 'harry'
+		},
+		{
+			id: 7749,
+			name: 'Blow torched',
+			dragging: false,
+			image: '/images/harry.jpg',
+			victim: 'harry'
+		},
+		{
+			id: 5498,
+			name: 'Lubed and feathered',
+			dragging: false,
+			image: '/images/harry.jpg',
+			victim: 'harry'
+		},
+		{
+			id: 9914,
+			name: 'MicroMachines',
+			dragging: false,
+			image: '/images/marv-harry.jpg',
+			victim: 'marv-harry'
+		},
+		{
+			id: 2820,
+			name: 'Paint can to the face',
+			dragging: false,
+			image: '/images/marv-harry.jpg',
+			victim: 'marv-harry'
+		},
+		{
+			id: 2258,
+			name: 'Tarantula in the mouth',
+			dragging: false,
+			image: '/images/marv.jpg',
+			victim: 'marv'
+		},
+		{
+			id: 5253,
+			name: 'Crowbar to the ribs',
+			dragging: false,
+			image: '/images/harry.jpg',
+			victim: 'harry'
+		},
+		{
+			id: 9496,
+			name: 'Falling from the tree house rope',
+			dragging: false,
+			image: '/images/marv-harry.jpg',
+			victim: 'marv-harry'
+		}
 	];
 
 	/**
@@ -82,16 +191,26 @@
 		injuries[index].dragging = false;
 	}
 
-	// Submit rankings to Supabase
+	// Store the original ranking order at the start
+	const originalRanking = injuries.map((item) => item.id);
+
 	async function submitRanking() {
-		const ranking = injuries.map((item) => item.id);
-		// @ts-ignore
-		const { data, error } = await supabase.from('rankings').insert([{ ranking }]);
+		const currentRanking = injuries.map((item) => item.id);
+
+		// Check if the current ranking is the same as the original
+		const isRankingUnchanged = JSON.stringify(currentRanking) === JSON.stringify(originalRanking);
+
+		if (isRankingUnchanged) {
+			await fetchWorldAverage(); // Show the global rankings
+			return;
+		}
+
+		// If the ranking has changed, submit it
+		const { data, error } = await supabase.from('rankings').insert([{ ranking: currentRanking }]);
 		if (error) {
 			console.error('Error submitting ranking:', error.message);
 			alert('Failed to submit ranking.');
 		} else {
-			alert('Ranking submitted successfully!');
 			fetchWorldAverage();
 		}
 	}
@@ -118,9 +237,11 @@
 				.map(([id, { total, count }]) => ({
 					id,
 					name: injuries.find((injury) => injury.id === Number(id))?.name || `Injury ${id}`,
+					image: injuries.find((injury) => injury.id === Number(id))?.image || '',
 					avgRank: (total / count).toFixed(2)
 				}))
 				.sort((a, b) => Number(a.avgRank) - Number(b.avgRank));
+
 			fetchedAverage = true;
 		}
 	}
@@ -228,7 +349,7 @@
 </script>
 
 <main>
-	<aside>
+	<aside class="intro">
 		<h1>The Brutality of Kevin McCallister</h1>
 		<p>
 			This site invites you to critically evaluate his methods and rank the severity of his
@@ -254,32 +375,54 @@
 					on:dragleave={() => handleDragLeave(index)}
 					class:dragging={injury.dragging}
 				>
+					<img src={injury.image} alt={injury.name} />
 					{injury.name}
 				</li>
 			{/each}
 		</ul>
-		<button on:click={submitRanking}>Submit your ranking</button>
 	</section>
 
-	<section class="world">
+	<aside class="submissions">
 		{#if !fetchedAverage}
-			<button on:click={fetchWorldAverage}> Discover the worlds thoughts </button>
+			<button on:click={submitRanking}>Submit your ranking</button>
 		{:else}
-			<h2>How the world sees Kevin</h2>
-			<ol>
-				{#each averageRankings as ranking}
-					<li>{ranking.name}</li>
-				{/each}
-			</ol>
+			<div class="world">
+				<h2>How the world judges McCallister</h2>
+				<ol>
+					{#each averageRankings as ranking}
+						<li>
+							<img src={ranking.image} alt={ranking.name} />
+							{ranking.name}
+						</li>
+					{/each}
+				</ol>
+				<p>
+					<small>
+						Based on {averageRankings.length} submissions as of {new Date().toLocaleString()}.
+					</small>
+				</p>
+			</div>
 		{/if}
-	</section>
+	</aside>
 </main>
 
 <footer>
-	<ul>
-		<li>Snow from https://codepen.io/radum/pen/xICAB</li>
-		<li>Colours from https://codepen.io/adamlindqvist/pen/EaPeJg</li>
-	</ul>
+	<span>
+		This site doesn't use any personally identifiable tracking - the source code is
+		<a
+			href="https://github.com/the-brutality-of-kevin-mccallister/the-brutality-of-kevin-mccallister.github.io"
+			target="_blank"
+			rel="noopener noreferrer">available here</a
+		>
+	</span>
+	🎅
+	<span>Made by <a href="https://superallan.com/">superallan</a></span>
+	🎄
+	<span><a href="https://codepen.io/radum/pen/xICAB">Snow credits</a></span>
+	🎁
+	<span>
+		<a href="https://codepen.io/adamlindqvist/pen/EaPeJg">Colour credits</a>
+	</span>
 </footer>
 
 <style>
@@ -289,6 +432,7 @@
 		--green: hsla(142.6, 52.3%, 42.7%, var(--alpha));
 		--dark-green: hsla(159, 80.4%, 30%, var(--alpha));
 		--text-background: hsla(60, 55.6%, 91.2%, var(--alpha));
+		padding: 2rem;
 		user-select: none;
 		font-family: system-ui;
 		line-height: 1.4;
@@ -308,17 +452,20 @@
 		gap: 1rem;
 		grid-template-columns: 1fr;
 		align-items: start;
-		@media (min-width: 800px) {
-			grid-template-columns: 1fr 2fr 1fr;
+		@media (min-width: 1000px) {
+			grid-template-columns: 2fr 4fr 3fr;
 			gap: 2rem;
 		}
 	}
-	aside {
+	.intro {
 		h1 {
+			margin-block-start: 1rem;
 			font-size: 3rem;
 			line-height: 0.9;
 			text-wrap: balance;
 		}
+		position: sticky;
+		inset-block-start: 1rem;
 		background-color: var(--text-background);
 		padding: 1rem 2rem;
 		border-radius: 0.125rem;
@@ -327,23 +474,29 @@
 	ul {
 		list-style: none;
 		padding: 0;
+		margin: 0;
 	}
 	.yours {
-		background: var(--text-background);
-		padding: 1rem 2rem;
-		border-radius: 0.125rem;
-		box-shadow: 0 0 0.5rem var(--dark-green);
 		display: flex;
 		flex-direction: column;
+		font-size: 1.25rem;
 		li {
 			padding: 0.5rem 1rem;
+			background: var(--text-background);
+			box-shadow: 0 0 0.5rem var(--dark-green);
 			margin-bottom: 0.5rem;
 			font-weight: bold;
 			cursor: grab;
 			border-radius: 1rem;
 			border-width: 0.125rem;
-			border-style: dashed;
-
+			border-style: solid;
+			display: flex;
+			align-items: center;
+			gap: 1rem;
+			img {
+				block-size: 3rem;
+				border-radius: 0.75rem;
+			}
 			&:nth-child(3n) {
 				border-color: var(--red);
 			}
@@ -358,33 +511,80 @@
 				background-color: var(--red);
 			}
 		}
-		button {
-			margin-inline-start: auto;
-			background-color: var(--dark-green);
-			color: var(--text-background);
-			font-weight: bold;
-			padding: 1rem 2rem;
-			border: none;
-			border-radius: 0.25rem;
-			cursor: pointer;
-			font-size: 1.25rem;
-		}
+	}
+	.submissions {
+		position: sticky;
+		inset-block-start: 1rem;
+	}
+	button {
+		background-color: var(--dark-green);
+		color: var(--text-background);
+		font-weight: bold;
+		margin-block-start: 1.5rem;
+		margin-inline-start: 1.5rem;
+		padding: 1rem;
+		border: none;
+		box-shadow:
+			0 0 0 0.5rem var(--green),
+			0 0 0 1rem var(--red),
+			0 0 0 1.5rem var(--text-background);
+		border-radius: 0.5rem;
+		cursor: pointer;
+		font-size: 1.5rem;
+		inline-size: calc(100% - 4.5rem);
 	}
 	.world {
 		background: var(--text-background);
-		padding: 1rem 2rem;
+		padding: 2rem;
 		border-radius: 0.125rem;
 		box-shadow: 0 0 0.5rem var(--dark-green);
-		button {
-			margin-inline-start: auto;
-			background-color: var(--green);
-			color: var(--text-background);
-
-			padding: 1rem 2rem;
-			border: none;
-			border-radius: 0.25rem;
-			cursor: pointer;
-			font-size: 1rem;
+		h2 {
+			margin-block-start: 0;
+		}
+		ol {
+			margin: 0;
+			padding: 0;
+			display: grid;
+			gap: 1rem 0.75rem;
+			grid-template-columns: 1rem 1.5rem auto;
+			align-items: center;
+		}
+		li {
+			grid-column: 1/-1;
+			display: grid;
+			grid-template-columns: subgrid;
+			counter-increment: ranking;
+			&::before {
+				content: counter(ranking) '';
+				font-weight: bold;
+				text-align: end;
+			}
+			img {
+				inline-size: 1.5rem;
+				border-radius: 0.75rem;
+			}
+			&:nth-child(3n) {
+				border-color: var(--red);
+			}
+			&:nth-child(3n + 1) {
+				border-color: var(--dark-green);
+			}
+			&:nth-child(3n + 2) {
+				border-color: var(--green);
+			}
+		}
+	}
+	footer {
+		margin-block-start: 5rem;
+		inline-size: calc(100% - 2rem);
+		padding: 1rem;
+		background-color: var(--text-background);
+		border-radius: 1rem;
+		display: inline-flex;
+		gap: 1rem;
+		a {
+			color: var(--dark-green);
+			text-decoration: none;
 		}
 	}
 </style>
