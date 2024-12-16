@@ -581,8 +581,6 @@
 		padding: 1rem;
 		background-color: var(--text-background);
 		border-radius: 1rem;
-		display: inline-flex;
-		gap: 1rem;
 		a {
 			color: var(--dark-green);
 			text-decoration: none;
