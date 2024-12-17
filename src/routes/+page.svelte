@@ -145,15 +145,11 @@
 	 */
 	let sortableContainer;
 
+	const originalOrder = injuries.map((injury) => injury.id);
 	const submitRanking = async () => {
-		const rankingIds = injuries.map((item) => item.id);
-		const originalIds = injuries.map((item, index) => index + 1);
-
-		// Check if the ranking is different from the original
-		const isDifferent = rankingIds.some((id, index) => id !== originalIds[index]);
-
-		if (!isDifferent) {
-			alert('Please change the order before submitting.');
+		const rankingIds = injuries.map((injury) => injury.id);
+		if (rankingIds.join(',') === originalOrder.join(',')) {
+			fetchWorldAverage();
 			return;
 		}
 
