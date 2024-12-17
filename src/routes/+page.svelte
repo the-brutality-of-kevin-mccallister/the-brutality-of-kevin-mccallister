@@ -1,5 +1,7 @@
 <script>
+	import { initializeSnowEffect as initSnow } from '$lib/snowfall';
 	import { supabase } from '$lib/supabaseClient';
+	import Sortable from 'sortablejs';
 	import { onMount } from 'svelte';
 
 	/**
@@ -139,120 +141,35 @@
 	 */
 	let averageRankings = [];
 	/**
-	 * @type {number | null}
+	 * @type {HTMLUListElement}
 	 */
-	let draggedIndex = null;
-	/**
-	 * @type {number | null}
-	 */
-	let touchStartY = null;
+	let sortableContainer;
 
-	/**
-	 * Handle the start of a drag or touch event
-	 * @param {TouchEvent | DragEvent} event
-	 * @param {number} index
-	 */
-	function handleDragStart(event, index) {
-		draggedIndex = index;
+	const submitRanking = async () => {
+		const rankingIds = injuries.map((item) => item.id);
+		const originalIds = injuries.map((item, index) => index + 1);
 
-		// Track touch position for touch-based drag-and-drop
-		if (event.type === 'touchstart') {
-			if (event instanceof TouchEvent) {
-				touchStartY = event.touches[0].clientY;
-			}
-		}
-	}
+		// Check if the ranking is different from the original
+		const isDifferent = rankingIds.some((id, index) => id !== originalIds[index]);
 
-	/**
-	 * Handle the drop or touchend event
-	 * @param {TouchEvent | DragEvent} event
-	 * @param {number} index
-	 */
-	function handleDrop(event, index) {
-		if (draggedIndex !== null) {
-			// Prevent default touch behavior
-			if (event.type === 'touchend') {
-				event.preventDefault();
-			}
-
-			// Update the list order
-			const updatedInjuries = [...injuries];
-			const [movedItem] = updatedInjuries.splice(draggedIndex, 1);
-			updatedInjuries.splice(index, 0, movedItem);
-
-			// Update the list and reset drag state
-			injuries = updatedInjuries.map((injury) => ({ ...injury, dragging: false }));
-			draggedIndex = null;
-			touchStartY = null;
-		}
-	}
-
-	/**
-	 * Handle dragover or touchmove
-	 * @param {TouchEvent | DragEvent} event
-	 * @param {number} index
-	 */
-	function handleDragOver(event, index) {
-		event.preventDefault();
-
-		// Handle touch-based dragging
-		if (event.type === 'touchmove') {
-			const currentY = event instanceof TouchEvent ? event.touches[0].clientY : 0;
-
-			// Determine if we're moving up or down
-			if (touchStartY && Math.abs(currentY - touchStartY) > 30) {
-				if (currentY > touchStartY && index < injuries.length - 1) {
-					// Moving down
-					handleDrop(event, index + 1);
-				} else if (currentY < touchStartY && index > 0) {
-					// Moving up
-					handleDrop(event, index - 1);
-				}
-				touchStartY = currentY; // Update the start position
-			}
-		}
-
-		// Update dragging state for visual feedback
-		injuries = injuries.map((injury, i) => ({
-			...injury,
-			dragging: i === index
-		}));
-	}
-
-	/**
-	 * Handle dragleave or touchcancel
-	 * @param {number} index
-	 */
-	function handleDragLeave(index) {
-		injuries[index].dragging = false;
-	}
-
-	// Store the original ranking order at the start
-	const originalRanking = injuries.map((item) => item.id);
-
-	async function submitRanking() {
-		const currentRanking = injuries.map((item) => item.id);
-
-		// Check if the current ranking is the same as the original
-		const isRankingUnchanged = JSON.stringify(currentRanking) === JSON.stringify(originalRanking);
-
-		if (isRankingUnchanged) {
-			await fetchWorldAverage(); // Show the global rankings
+		if (!isDifferent) {
+			alert('Please change the order before submitting.');
 			return;
 		}
 
-		// If the ranking has changed, submit it
-		const { data, error } = await supabase.from('rankings').insert([{ ranking: currentRanking }]);
+		const { error } = await supabase.from('rankings').insert([{ ranking: rankingIds }]);
+
 		if (error) {
 			console.error('Error submitting ranking:', error.message);
 			alert('Failed to submit ranking.');
 		} else {
 			fetchWorldAverage();
 		}
-	}
+	};
 
 	let fetchedAverage = false;
-	// Fetch global average rankings from Supabase
+	let fetchedTotal = 0;
+
 	async function fetchWorldAverage() {
 		const { data, error } = await supabase.from('rankings').select('ranking');
 		if (error) {
@@ -278,6 +195,7 @@
 				}))
 				.sort((a, b) => Number(a.avgRank) - Number(b.avgRank));
 
+			fetchedTotal = data.length;
 			fetchedAverage = true;
 		}
 	}
@@ -285,102 +203,20 @@
 	// Snow effect logic
 	// @ts-ignore
 	onMount(() => {
-		const COUNT = 300;
-		const masthead = document.querySelector('main');
-		const canvas = document.createElement('canvas');
-		const ctx = canvas.getContext('2d');
-		let width = masthead?.clientWidth;
-		let height = masthead?.clientHeight;
-		let active = false;
-
-		function onResize() {
-			width = masthead?.clientWidth;
-			height = masthead?.clientHeight;
+		new Sortable(sortableContainer, {
+			animation: 150, // Smooth animation
+			handle: 'li', // Handle to drag the element
 			// @ts-ignore
-			canvas.width = width;
-			// @ts-ignore
-			canvas.height = height;
-			// @ts-ignore
-			ctx.fillStyle = '#FFF';
-			// @ts-ignore
-			active = width > 600;
-			if (active) requestAnimationFrame(update);
-		}
-
-		class Snowflake {
-			constructor() {
-				this.reset();
+			onEnd: (event) => {
+				const { oldIndex, newIndex } = event;
+				if (oldIndex !== newIndex) {
+					const movedItem = injuries.splice(oldIndex, 1)[0];
+					injuries.splice(newIndex, 0, movedItem);
+				}
 			}
-			reset() {
-				// @ts-ignore
-				this.x = Math.random() * width;
-				// @ts-ignore
-				this.y = Math.random() * -height;
-				this.vy = 1 + Math.random() * 3;
-				this.vx = 0.5 - Math.random();
-				this.r = 1 + Math.random() * 2;
-				this.o = 0.5 + Math.random() * 0.5;
-			}
-		}
-
-		canvas.style.position = 'absolute';
-		canvas.style.left = '0';
-		canvas.style.top = '0';
-		canvas.style.pointerEvents = 'none';
-		// @ts-ignore
-		masthead.style.position = 'relative';
-		// @ts-ignore
-		masthead.appendChild(canvas);
-
-		const snowflakes = Array.from({ length: COUNT }, () => new Snowflake());
-
-		function update() {
-			// @ts-ignore
-			ctx.clearRect(0, 0, width, height);
-			if (!active) return;
-
-			for (const snowflake of snowflakes) {
-				// @ts-ignore
-				snowflake.y += snowflake.vy;
-				// @ts-ignore
-				snowflake.x += snowflake.vx;
-
-				// @ts-ignore
-				ctx.globalAlpha = snowflake.o;
-				// @ts-ignore
-				ctx.beginPath();
-				// @ts-ignore
-				ctx.arc(snowflake.x, snowflake.y, snowflake.r, 0, Math.PI * 2);
-				// @ts-ignore
-				ctx.closePath();
-				// @ts-ignore
-				ctx.fill();
-
-				// @ts-ignore
-				if (snowflake.y > height) snowflake.reset();
-			}
-
-			// @ts-ignore
-			requestAnimFrame(update);
-		}
-
-		// @ts-ignore
-		window.requestAnimFrame =
-			window.requestAnimationFrame ||
-			// @ts-ignore
-			window.webkitRequestAnimationFrame ||
-			// @ts-ignore
-			window.mozRequestAnimationFrame ||
-			// @ts-ignore
-			((callback) => window.setTimeout(callback, 1000 / 60));
-
-		onResize();
-		window.addEventListener('resize', onResize);
-
-		return () => {
-			window.removeEventListener('resize', onResize);
-			masthead?.removeChild(canvas);
-		};
+		});
+		const main = document.querySelector('main');
+		initSnow(main);
 	});
 </script>
 
@@ -392,7 +228,13 @@
 			ingenious, yet undeniably brutal, assaults on Harry and Marv. Were these traps truly acts of
 			self-defense, or the calculated excesses of a child reveling in unchecked power?
 		</p>
-		<p>The debate starts here.</p>
+		<p>
+			The debate starts here. <a
+				href="https://bsky.app/hashtag/theworldjudges"
+				target="_blank"
+				rel="noopener noreferrer">#theworldjudges</a
+			>
+		</p>
 		<p>
 			<strong>
 				Drag the attacks in to order of aggression, brutality and overwhelming force, then submit to
@@ -401,21 +243,22 @@
 		</p>
 	</aside>
 	<section class="yours">
-		<ul>
-			{#each injuries as injury, index}
-				<li
-					draggable="true"
-					on:dragstart={(event) => handleDragStart(event, index)}
-					on:drop={(event) => handleDrop(event, index)}
-					on:dragover={(event) => handleDragOver(event, index)}
-					on:dragleave={() => handleDragLeave(index)}
-					on:touchstart={(event) => handleDragStart(event, index)}
-					on:touchmove={(event) => handleDragOver(event, index)}
-					on:touchend={(event) => handleDrop(event, index)}
-					class:dragging={injury.dragging}
-				>
+		<ul bind:this={sortableContainer}>
+			{#each injuries as injury}
+				<li>
 					<img src={injury.image} alt={injury.name} />
-					{injury.name}
+					<span>{injury.name}</span>
+					<svg
+						class="dragger"
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 24 24"
+						fill="currentColor"
+					>
+						<path
+							d="M8.5 7C9.32843 7 10 6.32843 10 5.5C10 4.67157 9.32843 4 8.5 4C7.67157 4 7 4.67157 7 5.5C7 6.32843 7.67157 7 8.5 7ZM8.5 13.5C9.32843 13.5 10 12.8284 10 12C10 11.1716 9.32843 10.5 8.5 10.5C7.67157 10.5 7 11.1716 7 12C7 12.8284 7.67157 13.5 8.5 13.5ZM10 18.5C10 19.3284 9.32843 20 8.5 20C7.67157 20 7 19.3284 7 18.5C7 17.6716 7.67157 17 8.5 17C9.32843 17 10 17.6716 10 18.5ZM15.5 7C16.3284 7 17 6.32843 17 5.5C17 4.67157 16.3284 4 15.5 4C14.6716 4 14 4.67157 14 5.5C14 6.32843 14.6716 7 15.5 7ZM17 12C17 12.8284 16.3284 13.5 15.5 13.5C14.6716 13.5 14 12.8284 14 12C14 11.1716 14.6716 10.5 15.5 10.5C16.3284 10.5 17 11.1716 17 12ZM15.5 20C16.3284 20 17 19.3284 17 18.5C17 17.6716 16.3284 17 15.5 17C14.6716 17 14 17.6716 14 18.5C14 19.3284 14.6716 20 15.5 20Z"
+						>
+						</path>
+					</svg>
 				</li>
 			{/each}
 		</ul>
@@ -437,7 +280,7 @@
 				</ol>
 				<p>
 					<small>
-						Based on {averageRankings.length} submissions as of {new Date().toLocaleString()}.
+						Based on {fetchedTotal} submissions as of {new Date().toLocaleString()}.
 					</small>
 				</p>
 			</div>
@@ -471,12 +314,12 @@
 		--green: hsla(142.6, 52.3%, 42.7%, var(--alpha));
 		--dark-green: hsla(159, 80.4%, 30%, var(--alpha));
 		--text-background: hsla(60, 55.6%, 91.2%, var(--alpha));
-		padding: 2rem;
+
 		user-select: none;
 		font-family: system-ui;
 		line-height: 1.4;
 		background: repeating-linear-gradient(
-			to top left,
+			145deg,
 			var(--red),
 			var(--red) 3rem,
 			var(--green) 0,
@@ -487,11 +330,13 @@
 		min-block-size: 100vh;
 	}
 	main {
-		display: grid;
+		padding: 0.5rem;
 		gap: 1rem;
+		display: grid;
 		grid-template-columns: 1fr;
 		align-items: start;
 		@media (min-width: 1000px) {
+			padding: 2rem;
 			grid-template-columns: 2fr 4fr 3fr;
 			gap: 2rem;
 			.intro,
@@ -504,15 +349,18 @@
 	.intro {
 		h1 {
 			margin-block-start: 1rem;
+			margin-block-end: 0.5rem;
 			font-size: 3rem;
 			line-height: 0.9;
 			text-wrap: balance;
 		}
-
+		padding: 0.5rem 1rem;
 		background-color: var(--text-background);
-		padding: 1rem 2rem;
 		border-radius: 0.125rem;
 		box-shadow: 0 0 0.5rem var(--dark-green);
+		@media (min-width: 1000px) {
+			padding: 1rem 2rem;
+		}
 	}
 	ul {
 		list-style: none;
@@ -522,38 +370,53 @@
 	.yours {
 		display: flex;
 		flex-direction: column;
-		font-size: 1.25rem;
+		font-size: 1rem;
+		@media (min-width: 1000px) {
+			font-size: 1.25rem;
+		}
+		ul {
+			display: grid;
+			grid-template-columns: auto 1fr auto;
+			gap: 0.25rem 1rem;
+		}
 		li {
-			padding: 0.5rem 1rem;
+			display: grid;
+			grid-column: 1/-1;
+			grid-template-columns: subgrid;
+			align-items: center;
+			padding: 0.5rem;
 			background: var(--text-background);
 			box-shadow: 0 0 0.5rem var(--dark-green);
-			margin-bottom: 0.5rem;
 			font-weight: bold;
 			cursor: grab;
 			border-radius: 1rem;
 			border-width: 0.125rem;
 			border-style: solid;
-			display: flex;
-			align-items: center;
-			gap: 1rem;
+			line-height: 0.9;
 			img {
 				block-size: 3rem;
 				border-radius: 0.75rem;
 			}
+			.dragger {
+				block-size: 1.5rem;
+			}
 			&:nth-child(3n) {
 				border-color: var(--red);
+				.dragger {
+					color: var(--red);
+				}
 			}
 			&:nth-child(3n + 1) {
 				border-color: var(--dark-green);
+				.dragger {
+					color: var(--dark-green);
+				}
 			}
 			&:nth-child(3n + 2) {
 				border-color: var(--green);
-			}
-			&.dragging {
-				opacity: 0.7;
-				background-color: var(--red);
-				transform: scale(1.05); /* Slight zoom effect for feedback */
-				transition: transform 0.2s ease;
+				.dragger {
+					color: var(--green);
+				}
 			}
 		}
 	}
@@ -573,7 +436,7 @@
 		border-radius: 0.5rem;
 		cursor: pointer;
 		font-size: 1.5rem;
-		inline-size: calc(100% - 4.5rem);
+		inline-size: calc(100% - 3rem);
 	}
 	.world {
 		background: var(--text-background);
@@ -617,14 +480,14 @@
 		}
 	}
 	footer {
+		text-align: center;
 		margin-block-start: 5rem;
-		inline-size: calc(100% - 2rem);
 		padding: 1rem;
 		background-color: var(--text-background);
 		border-radius: 1rem;
-		a {
-			color: var(--dark-green);
-			text-decoration: none;
-		}
+	}
+	a {
+		color: var(--dark-green);
+		text-decoration: none;
 	}
 </style>
